@@ -1,0 +1,25 @@
+<?php
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        $xml = simplexml_load_file('./doc89c/status/статусыУПД.xml');
+        $json = json_encode($xml);
+        $array = json_decode($json, true);
+        echo '<table>';
+        echo '<thead>';
+        echo '<tr>';
+        foreach($array['item'] as $key => $value) {
+            echo '<th>'. $key .'</th>';
+        }
+        echo '</tr>';
+        echo '</thead>';
+        echo '<tbody>';
+        foreach($array['item'] as $item) {
+            echo '<tr>';
+            foreach($item as $value) {
+                echo '<td>'. $value .'</td>';
+            }
+            echo '</tr>';
+        }
+        echo '</tbody>';
+        echo '</table>';
+    }
+?>
