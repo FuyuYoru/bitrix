@@ -1,6 +1,6 @@
 <?php
-require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/header.php");
-$APPLICATION->SetTitle("Контроллинг УПД");
+//require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/header.php");
+//$APPLICATION->SetTitle("Контроллинг УПД");
 
 ?>
     <!DOCTYPE html>
@@ -13,15 +13,18 @@ $APPLICATION->SetTitle("Контроллинг УПД");
         <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+        <script src="utils.js"></script>
     </head>
     <body>
     <h1>Контроллинг статусов документов</h1>
 
     <!-- Форма с полем ввода и кнопкой -->
-    <form method="post" action="./process.php">
+    <form method="post">
         <label for="numberInput">Выделите поле и сканируйте штрих-код документа:</label>
         <input type="text" name="textInput" id="numberInput" placeholder="Ваш код здесь" autofocus>
-
+        <div id="searchContainer">
+        <!-- Контейнер для размещения найденых элементов из XML -->
+        </div>
         <div class="selectText">
             <!-- Элемент для выбора текста -->
             <select name="selectText" id="selectText">
@@ -33,32 +36,31 @@ $APPLICATION->SetTitle("Контроллинг УПД");
                 <option value="Удален корректировкой">Удален корректировкой</option>
             </select>
         </div>
-
         <button type="submit" name="submit">Отправить</button>
     </form>
 
     <div class="table-container">
-        
+
 
         <?php
         // Обработка XML
         $documents = array();
         $xmlFilePath = "./doc89c/status/статусыУПД.xml";
-        $sortOrder = isset($_GET['sortOrder']) ? $_GET['sortOrder']: 'desc';
+        $sortOrder = isset($_GET['sortOrder']) ? $_GET['sortOrder'] : 'desc';
 
         if (file_exists($xmlFilePath)) {
             $xml = simplexml_load_file($xmlFilePath);
             foreach ($xml->СтатусДокумента as $item) {
                 $documents[] = array(
                     'Документ' => (string)$item->Документ,
-                    'Период'   => strtotime((string)$item->Период),
-                    'Статус'   => (string)$item->Статус,
-                    'Автор'    => (string)$item->Автор,
+                    'Период' => strtotime((string)$item->Период),
+                    'Статус' => (string)$item->Статус,
+                    'Автор' => (string)$item->Автор,
                 );
             }
-            usort($documents, function ($a,$b) use($sortOrder){
-                $result = ($a['Период'] < $b['Период'])? -1: 1;
-                return ($sortOrder == 'asc')? $result: -$result ;
+            usort($documents, function ($a, $b) use ($sortOrder) {
+                $result = ($a['Период'] < $b['Период']) ? -1 : 1;
+                return ($sortOrder == 'asc') ? $result : -$result;
             });
 
             /*
@@ -68,7 +70,7 @@ $APPLICATION->SetTitle("Контроллинг УПД");
             echo '<thead>';
             echo '<tr>';
             foreach (array_keys($documents[0]) as $column) {
-                if ($column === 'Период'){
+                if ($column === 'Период') {
                     echo '<th><a href="?sortOrder=' . ($sortOrder == 'asc' ? 'desc' : 'asc') . '">' . $column . '</a></th>';
                 } else {
                     echo '<th>' . $column . '</th>';
@@ -81,10 +83,10 @@ $APPLICATION->SetTitle("Контроллинг УПД");
             foreach ($documents as $document) {
                 echo '<tr>';
                 foreach ($document as $key => $value) {
-                    if ($key ==='Период'){
-                        echo '<td>' . date('d-m-Y H:i:s', $value).'</td>';
-                    }else{
-                        echo '<td>'.$value.'</td>';
+                    if ($key === 'Период') {
+                        echo '<td>' . date('d-m-Y H:i:s', $value) . '</td>';
+                    } else {
+                        echo '<td>' . $value . '</td>';
                     }
 
                 }
@@ -111,14 +113,10 @@ $APPLICATION->SetTitle("Контроллинг УПД");
 
         ?>
         <script>
-            const tableContainer = document.querySelector('.table-container');
-            const tableElement = tableContainer.querySelector('table');
             // JavaScript для сохранения и восстановления значения select с использованием localStorage
             $(document).ready(function () {
                 const selectElement = document.getElementById('selectText');
                 const inputElement = document.getElementById('numberInput');
-                // const tableContainer = document.querySelector('.table-container');
-                // const tableElement = tableContainer.querySelector('table');
                 // Получаем значение из localStorage при загрузке страницы
                 const savedValue = localStorage.getItem('selectedStatus');
                 if (savedValue) {
@@ -126,7 +124,7 @@ $APPLICATION->SetTitle("Контроллинг УПД");
                 }
 
                 // Обработчик изменения значения в select
-                selectElement.addEventListener('change', function(event) {
+                selectElement.addEventListener('change', function (event) {
                     event.preventDefault(); // Предотвращаем стандартное действие браузера
 
                     // Сохраняем выбранное значение в localStorage
@@ -135,70 +133,43 @@ $APPLICATION->SetTitle("Контроллинг УПД");
                     // Переключаем фокус на input
                     inputElement.focus();
                 });
+                // Обработчик события для отслеживания ввода в input
+                document.getElementById('numberInput').addEventListener('input', function () {
+                    // Очистка контейнера при каждом новом вводе
+                    clearResults();
+                    if (this.value.length === 0) {
+                        return;
+                    }
+                    // Получаем значение из input'а
+                    const inputValue = this.value.trim().toLowerCase();
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('GET', "./doc89c/status/Реализации.xml", true);
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState === 4 && xhr.status === 200) {
+                            const xmlDoc = xhr.responseXML;
+                            // Получение всех элементов с нужным тегом из XML
+                            const items = xmlDoc.getElementsByTagName('Номер');
+                            // Фильтрация элементов, соответствующих введенному значению
+                            for (let i = 0; i < items.length; i++) {
+                                const itemValue = items[i].textContent.trim().toLowerCase();
+                                const checkValue = itemValue.split('-')[1];
+                                if (checkValue.includes(inputValue)) {
+                                    // Создание и добавление элемента в контейнер
+                                    const resultItem = document.createElement('div');
+                                    resultItem.textContent = itemValue;
+                                    document.getElementById('searchContainer').appendChild(resultItem);
+                                }
+                            }
+                        }
+                    };
+                    xhr.send();
+                });
 
-                // const thElements = document.querySelectorAll('table th');
-                // const thPeriodIndex = Array.from(thElements).findIndex((value, index) =>
-                //     value.textContent.trim() === 'Период');
-                //
-                // thElements[thPeriodIndex].addEventListener('click', function() {
-                //     sortTableByColumn('Период');
-                // });
-                //
-                // // Функция для сортировки таблицы по колонке "период"
-                // function sortTableByColumn(column) {
-                //     const rows = Array.from(tableElement.querySelectorAll('tbody tr'));
-                //
-                //     rows.sort((rowA, rowB) => {
-                //         const valueA = rowA.querySelectorAll(`td`)[thPeriodIndex]?.innerText || '';
-                //         const valueB = rowB.querySelectorAll(`td`)[thPeriodIndex]?.innerText || '';
-                //         const timesArrayA = valueA.replace(/[^0-9]/g, '-').split('-');
-                //         const timesArrayB = valueB.replace(/[^0-9]/g, '-').split('-');
-                //
-                //         const dateA = new Date(timesArrayA[2],timesArrayA[1],timesArrayA[0],
-                //             timesArrayA[3],timesArrayA[4],timesArrayA[5]);
-                //         const dateB = new Date(timesArrayB[2],timesArrayB[1],timesArrayB[0],
-                //             timesArrayB[3],timesArrayB[4],timesArrayB[5]);
-                //         console.log(dateB - dateA);
-                //         return dateB - dateA;
-                //     });
-                //
-                //     tableElement.querySelector('tbody').innerHTML = '';
-                //     rows.forEach(row => tableElement.querySelector('tbody').appendChild(row));
-                // }
             });
-            // const thElements = document.querySelectorAll('table th');
-            // const thPeriodIndex = Array.from(thElements).findIndex((value, index) =>
-            //     value.textContent.trim() === 'Период');
-            //
-            // thElements[thPeriodIndex].addEventListener('click', function() {
-            //     sortTableByColumn('Период');
-            // });
-
-            // Функция для сортировки таблицы по колонке "период"
-            // function sortTableByColumn(column) {
-            //     const rows = Array.from(tableElement.querySelectorAll('tbody tr'));
-            //
-            //     rows.sort((rowA, rowB) => {
-            //         const valueA = rowA.querySelectorAll(`td`)[thPeriodIndex]?.innerText || '';
-            //         const valueB = rowB.querySelectorAll(`td`)[thPeriodIndex]?.innerText || '';
-            //         const timesArrayA = valueA.replace(/[^0-9]/g, '-').split('-');
-            //         const timesArrayB = valueB.replace(/[^0-9]/g, '-').split('-');
-            //
-            //         const dateA = new Date(timesArrayA[2],timesArrayA[1],timesArrayA[0],
-            //             timesArrayA[3],timesArrayA[4],timesArrayA[5]);
-            //         const dateB = new Date(timesArrayB[2],timesArrayB[1],timesArrayB[0],
-            //             timesArrayB[3],timesArrayB[4],timesArrayB[5]);
-            //         console.log(dateB - dateA);
-            //         return dateB - dateA;
-            //     });
-            //
-            //     tableElement.querySelector('tbody').innerHTML = '';
-            //     rows.forEach(row => tableElement.querySelector('tbody').appendChild(row));
-            // }
         </script>
     </div>
     </body>
     </html>
 
 
-<?php require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/footer.php"); ?>
+<?php //require($_SERVER["DOCUMENT_ROOT"] . "/bitrix/footer.php"); ?>
