@@ -21,7 +21,10 @@
     <!-- Форма с полем ввода и кнопкой -->
     <form method="post">
         <label for="numberInput">Выделите поле и сканируйте штрих-код документа:</label>
-        <input type="text" name="textInput" id="numberInput" placeholder="Ваш код здесь" autofocus>
+        <div id="inputContainer">
+            <input type="text" name="textInput" id="numberInput" placeholder="Ваш код здесь" autofocus>
+            <button id="button_clearInput">X</button>
+        </div>
         <div id="searchContainer">
         <!-- Контейнер для размещения найденых элементов из XML -->
         </div>
@@ -113,6 +116,8 @@
 
         ?>
         <script>
+            const clearInput = document.getElementById('button_clearInput');
+            clearInput.addEventListener('click', handlerClearInput)
             // JavaScript для сохранения и восстановления значения select с использованием localStorage
             $(document).ready(function () {
                 const selectElement = document.getElementById('selectText');
@@ -148,15 +153,22 @@
                         if (xhr.readyState === 4 && xhr.status === 200) {
                             const xmlDoc = xhr.responseXML;
                             // Получение всех элементов с нужным тегом из XML
-                            const items = xmlDoc.getElementsByTagName('Номер');
+                            const numberItems = xmlDoc.getElementsByTagName('Номер');
+                            const docNameItems = xmlDoc.getElementsByTagName('Реализация');
                             // Фильтрация элементов, соответствующих введенному значению
-                            for (let i = 0; i < items.length; i++) {
-                                const itemValue = items[i].textContent.trim().toLowerCase();
+                            for (let i = 0; i < numberItems.length; i++) {
+                                const itemValue = numberItems[i].textContent.trim().toLowerCase();
                                 const checkValue = itemValue.split('-')[1];
                                 if (checkValue.includes(inputValue)) {
                                     // Создание и добавление элемента в контейнер
                                     const resultItem = document.createElement('div');
-                                    resultItem.textContent = itemValue;
+                                    resultItem.textContent = numberItems[i].textContent;
+                                    resultItem.className='searchItem';
+                                    resultItem.addEventListener('click', function (){
+                                        // Сохраняем выбранное значение в localStorage
+                                        inputElement.value = docNameItems[i].textContent;
+                                        clearResults();
+                                    })
                                     document.getElementById('searchContainer').appendChild(resultItem);
                                 }
                             }
@@ -164,7 +176,6 @@
                     };
                     xhr.send();
                 });
-
             });
         </script>
     </div>

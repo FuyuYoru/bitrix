@@ -4,3 +4,8 @@ function clearResults() {
         resultContainer.removeChild(resultContainer.firstChild);
     }
 }
+
+function handlerClearInput() {
+    const inputElement = document.getElementById('textInput');
+    inputElement.value = '';
+}
